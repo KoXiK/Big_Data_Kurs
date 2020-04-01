@@ -1,80 +1,111 @@
 package bigData
-
 import scala.io.Source
 
-case class Route(airline_id: Int, source_air: String, source_air_id: Int, target_air: String, target_air_id: Int)
-case class Airport(airport_id: Int, name_airport: String, country: String)
-case class Airline(airline_id: Int, name_airline: String, country: String, active: Boolean)
-case class StatCountry[A](count: Seq[A], airport: Seq[A])
+case class Route(
+                  idAirline: Int,
+                  nameSourceAirport: String,
+                  idSourceAirport: Int,
+                  nameTargetAirport: String,
+                  idTargetAirport: Int
+                )
 
-
+case class Airport(
+                    idAirport: Int,
+                    nameAirport: String,
+                    country: String
+                  )
+case class Airline(
+                    idAirline: Int,
+                    nameAirline: String,
+                    country: String,
+                    active: Boolean
+                  )
+case class StatCountry[A](allVisitedCountry: Seq[A], airport: Seq[A])
 
 object Airline extends App
 {
 
-  def countryStat(airline: String)  = //
-    {
+  def countryStat(airline: String): Map[String,StatCountry[String]] = {
+    val contentAirline = Source.fromFile("./datasource/avia/airlines.dat.txt")
+      .getLines().map(
+        line =>
+          line.split(",",-1)).toSeq.map {
+            case Array(idAirline,nameAirline,_,_,_,_,country,active,_*) =>
+              Airline(
+                if(!idAirline.contains("N")) idAirline.toInt else 2020,
+                nameAirline.substring(1, nameAirline.length() - 1),
+                country.substring(1, country.length() - 1),
+                active.substring(1, active.length() - 1) == "Y"
+              )
+          }
 
-      val contentAirline = Source.fromFile("/home/vladimir/BigDataKurs/MyHome/master/datasource/avia/airlines.dat.txt")
-        .getLines().map(line =>
-        line.split(",",-1)).toSeq.map{ case Array(id_airline,name,_,_,_,_,country,active,_*) =>
-        Airline(if(!id_airline.contains("N")) id_airline.toInt else 2020, name.substring(1, name.length() - 1), country.substring(1, country.length() - 1), active.substring(1, active.length() - 1) == "Y")
-      }
+    val contentAirport = Source.fromFile("./datasource/avia/airports.dat.txt")
+      .getLines().map(
+        line =>
+          line.split(",",-1)).toSeq.map {
+            case Array(id_airline,name,_,country,_,_,_,_,_,_,_,_,_,_*) =>
+              Airport(
+                if(!id_airline.contains("N")) id_airline.toInt else 2020,
+                name.substring(1, name.length() - 1),
+                country.substring(1, country.length() - 1)
+              )
+          }
 
-      val contentAirport = Source.fromFile("/home/vladimir/BigDataKurs/MyHome/master/datasource/avia/airports.dat.txt")
-        .getLines().map(line =>
-        line.split(",",-1)).toSeq.map{ case Array(id_airline,name,_,country,_,_,_,_,_,_,_,_,_,_*) =>
-        Airport(if(!id_airline.contains("N")) id_airline.toInt else 2020, name.substring(1, name.length() - 1), country.substring(1, country.length() - 1))
-      }
+
+    val contentRoutes = Source.fromFile("./datasource/avia/routes.dat.txt")
+      .getLines().map(
+        line =>
+          line.split(",",-1)).toSeq.map {
+            case Array(_,id,sourceAir,idSource,targetAir,idTarget,_,_,_*) =>
+              Route(
+                if(!id.contains("N")) id.toInt else 2020,
+                sourceAir,if(!idSource.contains("N")) idSource.toInt else 2020,
+                targetAir,if(!idTarget.contains("N")) idTarget.toInt else 2020
+              )
+          }
+
+    val currentAirline = contentAirline.filter(y => y.nameAirline == airline && y.active)
+
+    val idCurrentAirline: Int = currentAirline.map(x => x.idAirline).head
+
+    val countryCurrentAirline: String = currentAirline.map(x => x.country).head
+
+    val sortedAirport = contentAirport.filter(y => y.country == countryCurrentAirline).map(
+      x => x.idAirport).flatten(x => Seq(x))
+
+    val sortedRoute = contentRoutes.filter(
+      y => y.idAirline == idCurrentAirline && !sortedAirport.contains(y.idTargetAirport)
+    )
+
+    val sortedRouteOnIdAirport = sortedRoute.map(
+      x => x.idTargetAirport
+    ).flatten(x => Seq(x))
+
+    val sortedRouteOnAirports = sortedRoute.map(
+      x => x.nameTargetAirport
+    ).flatten(
+      x => Seq(x)
+    ).distinct
 
 
-      val contentRoutes = Source.fromFile("/home/vladimir/BigDataKurs/MyHome/master/datasource/avia/routes.dat.txt")
-        .getLines().map(line =>
-        line.split(",",-1)).toSeq.map{ case Array(_,id,sourceAir,idSource,targetAir,idTarget,_,_,_*) =>
-        Route(if(!id.contains("N")) id.toInt else 2020,sourceAir,if(!idSource.contains("N")) idSource.toInt else 2020,targetAir,if(!idTarget.contains("N")) idTarget.toInt else 2020)
-      }
 
-      //contentRoutes.foreach(x => println(x.source_air_id))
-
-      val current_airline = contentAirline.filter(y => y.name_airline == airline && y.active)
-
-      val current_airline_id: Int = current_airline.map(x => x.airline_id).head
-
-      val current_airline_country: String = current_airline.map(x => x.country).head
-
-      val sort_airport = contentAirport.filter(y => y.country == current_airline_country).map(x => x.airport_id).flatten{
+      val sortedAirportOnCountry = contentAirport.filter(
+        y => sortedRouteOnIdAirport.contains(y.idAirport)
+      ).map(
+        x => x.country
+      ).flatten(
         x => Seq(x)
-      }
+      ).distinct
 
-      val sort_route = contentRoutes.filter(y => y.airline_id == current_airline_id
-        && !sort_airport.contains(y.target_air_id))
-
-      val sort_route_Airport_id = sort_route.map(x => x.target_air_id).flatten{
-        x => Seq(x)
-      }
-
-      val sort_route_Airport = sort_route.map(x => x.target_air).flatten{
-        x => Seq(x)
-      }.distinct
-
-      //sort_route_Airport.foreach(x => println(x))
-
-      val sort_air_country = contentAirport.filter(y => sort_route_Airport_id.contains(y.airport_id)).map(x => x.country).flatten{
-        x => Seq(x)
-      }.distinct
-
-      //sort_air_country.foreach(x => println(x))
-
-      Map(current_airline_country -> StatCountry(sort_air_country, sort_route_Airport))
+      Map(countryCurrentAirline -> StatCountry(sortedAirportOnCountry, sortedRouteOnAirports))
     }
 
-    val myMap = countryStat("Aerocondor")
-    val mapp = myMap("Portugal")
+  val MapCountry = countryStat("Aerocondor")
 
-    println("Посещённые страны: ")
-    mapp.count.foreach(x => println(x + " "))
+  println("Посещённые страны: ")
+  MapCountry("Portugal").allVisitedCountry.foreach(x => println(x + " "))
     
-    println("Посещённые аэропорты")
-    mapp.airport.foreach(x => print(x + " "))
+  println("Посещённые аэропорты")
+  MapCountry("Portugal").airport.foreach(x => print(x + " "))
 
 }
